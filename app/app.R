@@ -50,18 +50,21 @@ server <- function(input, output, session) {
         unique()
     c_x_albedo <- read.csv("data/c_albedo_table.csv")
     
-    any_forest <- reactive({
-        get_hex_id(conus_hex_shp, input$lat, input$lon) %in% hex_ids
-    })
-    
     lat_lon <- reactive({
         req(input$lat, input$lon)
-        in_conus <- length(get_hex_id(conus_hex_shp, input$lat, input$lon)) != 0
+        
+        hex_id <- get_hex_id(conus_hex_shp, input$lat, input$lon)
+        in_conus <- length(hex_id) != 0
+        any_forest <- hex_id %in% hex_ids
 
         shinyFeedback::feedbackDanger("lat", !in_conus, "Lat/Lon not inside CONUS")
         shinyFeedback::feedbackDanger("lon", !in_conus, "Lat/Lon not inside CONUS")
-
+        
+        shinyFeedback::feedbackWarning("lat", !any_forest, "Location not currently forested")
+        shinyFeedback::feedbackWarning("lon", !any_forest, "Location not currently forested")
+        
         req(in_conus, cancelOutput = TRUE)
+        req(any_forest, cancelOutput = TRUE)
 
         return(list(lat = input$lat, lon = input$lon))
     })
@@ -77,44 +80,37 @@ server <- function(input, output, session) {
         click <- input$map_click
         lat <- click$lat
         lon <- click$lng
+        hex_id <- get_hex_id(conus_hex_shp, lat, lon)
         
         proxy <- leafletProxy("map")
         updateNumericInput(session, "lat", value = lat)
         updateNumericInput(session, "lon", value = lon)
         
-        in_conus <- length(get_hex_id(conus_hex_shp, lat, lon)) != 0
+        in_conus <- length(hex_id) != 0
+        any_forest <- hex_id %in% hex_ids
         
         shinyFeedback::feedbackDanger("lat", !in_conus, "Lat/Lon not inside CONUS")
         shinyFeedback::feedbackDanger("lon", !in_conus, "Lat/Lon not inside CONUS")
+        
+        shinyFeedback::feedbackWarning("lat", !any_forest, "Location not currently forested")
+        shinyFeedback::feedbackWarning("lon", !any_forest, "Location not currently forested")
+        
         req(in_conus, cancelOutput = TRUE)
+        req(any_forest, cancelOutput = TRUE)
     })
     
     output$ts <- renderPlot({
         waiter <- waiter::Waiter$new()
         waiter$show()
         on.exit(waiter$hide())
-        
-        coords <- lat_lon()
-        
-        if(!any_forest()) {
-            validate("Location currently nonforested.")
-        }
-        
-        render_ts(coords, conus_hex_shp, hex_conditions, c_x_albedo)
+        render_ts(lat_lon(), conus_hex_shp, hex_conditions, c_x_albedo)
     })
 
     output$rank_table <- renderText({
         waiter <- waiter::Waiter$new()
         waiter$show()
         on.exit(waiter$hide())
-        
-        coords <- lat_lon()
-        
-        if(!any_forest()) {
-            validate("Location currently nonforested.")
-        }
-        
-        render_rank_tab(coords, conus_hex_shp, hex_conditions, c_x_albedo)
+        render_rank_tab(lat_lon(), conus_hex_shp, hex_conditions, c_x_albedo)
     })
     
 }
