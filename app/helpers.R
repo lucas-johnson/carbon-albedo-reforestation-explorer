@@ -153,7 +153,10 @@ get_optimal_groups <- function(lat,
         dplyr::select(-USHEXES_ID, -TYPGRPCD, -age_diff, -AgeGroup)
 }
 
-render_ts <- function(lat, lon) {
+render_ts <- function(lat_lon) {
+    lat <- lat_lon$lat
+    lon <- lat_lon$lon
+    
     hex_conditions <- read.csv("data/hex_conditions.csv")
     c_x_albedo <- read.csv("data/c_albedo_table.csv")
     conus_hex_shp <- sf::st_read("data/conus_hex.gpkg")
@@ -161,7 +164,10 @@ render_ts <- function(lat, lon) {
     get_ts_plot(c_x_albedo, groups$ForestTypeGroup)
 }
 
-render_top_three_tab <- function(lat, lon) {
+render_top_three_tab <- function(lat_lon) {
+    lat <- lat_lon$lat
+    lon <- lat_lon$lon
+    
     hex_conditions <- read.csv("data/hex_conditions.csv")
     c_x_albedo <- read.csv("data/c_albedo_table.csv")
     conus_hex_shp <- sf::st_read("data/conus_hex.gpkg")
