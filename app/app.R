@@ -4,12 +4,14 @@ library(kableExtra)
 library(ggplot2)
 library(shinyFeedback)
 library(leaflet)
+library(waiter)
 source("helpers.R")
 
 
 # Define UI for app that draws a histogram ----
 ui <- page_sidebar(
     shinyFeedback::useShinyFeedback(),
+    waiter::use_waiter(),
     # App title ----
     title = "Reforestation Recommendations",
     # Sidebar panel for inputs ----
@@ -34,14 +36,23 @@ ui <- page_sidebar(
     navset_card_underline(
         title = "Navigation",
         nav_panel("Map Selection", leafletOutput("map")),
-        nav_panel("25-year Horizon", htmlOutput("top_three")),
+        nav_panel("25-year Horizon", htmlOutput("rank_table")),
         nav_panel("Timeseries", plotOutput("ts", width = '100%'))
     )
 )
 
 # Define server logic required to draw a histogram ----
 server <- function(input, output, session) {
-    conus_hex_shp <- sf::st_read("data/conus_hex.gpkg")
+    conus_hex_shp <- sf::st_read("data/conus_hex.gpkg", quiet = TRUE)
+    hex_conditions <- read.csv("data/hex_conditions.csv")
+    hex_ids <- hex_conditions |>
+        dplyr::pull(USHEXES_ID) |> 
+        unique()
+    c_x_albedo <- read.csv("data/c_albedo_table.csv")
+    
+    any_forest <- reactive({
+        get_hex_id(conus_hex_shp, input$lat, input$lon) %in% hex_ids
+    })
     
     lat_lon <- reactive({
         req(input$lat, input$lon)
@@ -79,11 +90,31 @@ server <- function(input, output, session) {
     })
     
     output$ts <- renderPlot({
-        render_ts(lat_lon())
+        waiter <- waiter::Waiter$new()
+        waiter$show()
+        on.exit(waiter$hide())
+        
+        coords <- lat_lon()
+        
+        if(!any_forest()) {
+            validate("Location currently nonforested.")
+        }
+        
+        render_ts(coords, conus_hex_shp, hex_conditions, c_x_albedo)
     })
 
-    output$top_three <- renderText({
-        render_top_three_tab(lat_lon())
+    output$rank_table <- renderText({
+        waiter <- waiter::Waiter$new()
+        waiter$show()
+        on.exit(waiter$hide())
+        
+        coords <- lat_lon()
+        
+        if(!any_forest()) {
+            validate("Location currently nonforested.")
+        }
+        
+        render_rank_tab(coords, conus_hex_shp, hex_conditions, c_x_albedo)
     })
     
 }

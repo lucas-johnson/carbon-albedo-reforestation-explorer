@@ -1,14 +1,14 @@
 my_theme <- function() {
     theme_minimal() +
         theme(
-            legend.text=element_text(size=7),
-            legend.title = element_text(size=8),
-            plot.title = element_text(size = 10, hjust = 0.5),
-            plot.subtitle = element_text(size = 10, hjust = 0.5),
-            strip.text = element_text(size=8),
-            axis.text = element_text(size = 7),
-            axis.title = element_text(size = 8),
-            legend.position = "bottom",
+            legend.text=element_text(size=12),
+            legend.title = element_text(size=14),
+            plot.title = element_blank(),
+            plot.subtitle = element_blank(),
+            strip.text = element_text(size=14),
+            axis.text = element_text(size = 12),
+            axis.title = element_text(size = 14),
+            legend.position = "right",
             plot.background = element_rect(color = 'white')
         )
 }
@@ -127,51 +127,44 @@ get_ts_plot <- function(c_albedo_table, groups, max_age = 200, write_file = NULL
     return(p)    
 }
 
-get_optimal_groups <- function(lat, 
-                               lon, 
-                               conus_hex_shp, 
-                               hex_conditions, 
-                               c_x_albedo, 
-                               column, 
-                               age = 20, 
-                               max_rank = 3) {
+get_groups <- function(lat, lon, conus_hex_shp, hex_conditions, c_x_albedo, column, direction = 'descending', age = 20) {
     hex_id <- get_hex_id(conus_hex_shp, lat, lon)
     
-    optimal <- dplyr::bind_rows(lapply(1:max_rank, \(rank) {
-        filter_groups_to_optimal(hex_conditions |> 
-                                     dplyr::filter(USHEXES_ID == hex_id), 
-                                 get_best_age_match(c_x_albedo, 
-                                                    age, 
-                                                    {{column}}), 
-                                 {{column}}, 
-                                 'descending', 
-                                 rank = rank) |>
-            dplyr::mutate(rank = rank)
-    }))
+    groups <- hex_conditions |> 
+        dplyr::filter(USHEXES_ID == hex_id) |>
+        dplyr::left_join(get_best_age_match(c_x_albedo, 
+                                            age, 
+                                            {{column}}),
+                         by = 'TYPGRPCD') |>
+        dplyr::filter(!is.na({{column}}))
     
-    optimal |>
-        dplyr::select(-USHEXES_ID, -TYPGRPCD, -age_diff, -AgeGroup)
+    if (direction == 'descending') {
+        groups <- groups |> 
+            dplyr::arrange(-{{column}})
+    } else {
+        groups <- groups |> 
+            dplyr::arrange({{column}})
+    }
+    groups |>
+        dplyr::select(-USHEXES_ID, -TYPGRPCD, -age_diff, -AgeGroup) |>
+        dplyr::mutate(rank = 1:dplyr::n())
+        
+    
 }
 
-render_ts <- function(lat_lon) {
+render_ts <- function(lat_lon, conus_hex_shp, hex_conditions, c_x_albedo) {
     lat <- lat_lon$lat
     lon <- lat_lon$lon
     
-    hex_conditions <- read.csv("data/hex_conditions.csv")
-    c_x_albedo <- read.csv("data/c_albedo_table.csv")
-    conus_hex_shp <- sf::st_read("data/conus_hex.gpkg")
-    groups <- get_optimal_groups(lat, lon, conus_hex_shp, hex_conditions, c_x_albedo, joint_c)
+    groups <- get_groups(lat, lon, conus_hex_shp, hex_conditions, c_x_albedo, joint_c)
     get_ts_plot(c_x_albedo, groups$ForestTypeGroup)
 }
 
-render_top_three_tab <- function(lat_lon) {
+render_rank_tab <- function(lat_lon, conus_hex_shp, hex_conditions, c_x_albedo) {
     lat <- lat_lon$lat
     lon <- lat_lon$lon
     
-    hex_conditions <- read.csv("data/hex_conditions.csv")
-    c_x_albedo <- read.csv("data/c_albedo_table.csv")
-    conus_hex_shp <- sf::st_read("data/conus_hex.gpkg")
-    groups <- get_optimal_groups(lat, lon, conus_hex_shp, hex_conditions, c_x_albedo, joint_c) |>
+    groups <- get_groups(lat, lon, conus_hex_shp, hex_conditions, c_x_albedo, joint_c) |>
         dplyr::relocate(rank, ForestTypeGroup, joint_c, carbon, carbon_se, cumTDEE, cumTDEE_ubSE, cumTDEE_lbSE) |>
         dplyr::mutate(dplyr::across(dplyr::where(is.numeric), ~ round(.x, 2)))
     
