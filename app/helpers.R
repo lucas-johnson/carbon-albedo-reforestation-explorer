@@ -71,7 +71,7 @@ filter_groups_to_optimal <- function(hex_conditions, c_x_albedo, column, directi
     
 }
 
-get_ts_plot <- function(c_albedo_table, groups, max_age = 200, write_file = NULL) {
+get_ts_plot <- function(c_albedo_table, groups, max_age = 105, write_file = NULL) {
     data <- c_albedo_table |> 
         dplyr::filter(ForestTypeGroup %in% groups, 
                       AgeGroup <= max_age)
@@ -107,15 +107,27 @@ get_ts_plot <- function(c_albedo_table, groups, max_age = 200, write_file = NULL
     data <- c_data |> 
         dplyr::left_join(upper_se_data, by = c('type', 'AgeGroup', 'ForestTypeGroup')) |>
         dplyr::left_join(lower_se_data, by = c('type', 'AgeGroup', 'ForestTypeGroup')) |>
-        dplyr::mutate(type = factor(type, levels = c('Non-soil Carbon', 'Carbon-equivalent Albedo Offset', 'Joint C-albedo')))
+        dplyr::mutate(type = factor(type, levels = c('Non-soil Carbon', 'Carbon-equivalent Albedo Offset', 'Joint C-albedo'))) |>
+        dplyr::mutate(AgeGroup = AgeGroup + 5) |>
+        dplyr::mutate(future = AgeGroup <= 25) |>
+        dplyr::filter(AgeGroup < max_age)
+    preds <- data |>
+        dplyr::group_by(ForestTypeGroup, type) |>
+        dplyr::group_modify(~ data.frame(preds = predict(mgcv::gam(c ~ s(AgeGroup, bs = "cs"), data = .x), data.frame(AgeGroup = 1:max_age))) |> 
+                                dplyr::mutate(AgeGroup = 1:max_age)) |>
+        dplyr::ungroup() |> 
+        dplyr::mutate(future = AgeGroup <= 25)
     
     p <- ggplot(data, aes(x = AgeGroup, y = c, color = ForestTypeGroup)) + 
         scale_color_brewer(palette = 'Dark2', name = 'Forest-type Group') +
-        geom_pointrange(aes(ymin = lower, ymax = upper), size = 0.2) + 
+        geom_pointrange(aes(ymin = lower, ymax = upper, alpha = future), size = 0.2) + 
+        geom_line(data = preds, aes(y = preds, x = AgeGroup, alpha = future, color = ForestTypeGroup), size = .8) +
         facet_wrap(~ type, ncol = 2, scales = 'free') +
         scale_y_continuous(expand = c(0.005, 0.005)) + 
         scale_x_continuous(expand = c(0.005, 0.005)) +
-        geom_smooth(method = 'gam', se = F) +
+        scale_alpha_discrete(range = c(0.35, 1), guide = NULL) +
+        geom_vline(xintercept = 20, linetype = 'longdash') + 
+        geom_vline(xintercept = 30, linetype = 'longdash') + 
         annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, linewidth = 1) +
         annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, linewidth = 1) +
         my_theme() +

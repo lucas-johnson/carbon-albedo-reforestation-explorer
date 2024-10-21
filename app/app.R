@@ -60,10 +60,11 @@ server <- function(input, output, session) {
         shinyFeedback::feedbackDanger("lat", !in_conus, "Lat/Lon not inside CONUS")
         shinyFeedback::feedbackDanger("lon", !in_conus, "Lat/Lon not inside CONUS")
         
+        req(in_conus, cancelOutput = TRUE)
+        
         shinyFeedback::feedbackWarning("lat", !any_forest, "Location not currently forested")
         shinyFeedback::feedbackWarning("lon", !any_forest, "Location not currently forested")
         
-        req(in_conus, cancelOutput = TRUE)
         req(any_forest, cancelOutput = TRUE)
 
         return(list(lat = input$lat, lon = input$lon))
@@ -92,10 +93,11 @@ server <- function(input, output, session) {
         shinyFeedback::feedbackDanger("lat", !in_conus, "Lat/Lon not inside CONUS")
         shinyFeedback::feedbackDanger("lon", !in_conus, "Lat/Lon not inside CONUS")
         
+        req(in_conus, cancelOutput = TRUE)
+        
         shinyFeedback::feedbackWarning("lat", !any_forest, "Location not currently forested")
         shinyFeedback::feedbackWarning("lon", !any_forest, "Location not currently forested")
         
-        req(in_conus, cancelOutput = TRUE)
         req(any_forest, cancelOutput = TRUE)
     })
     
