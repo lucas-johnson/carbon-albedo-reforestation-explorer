@@ -73,7 +73,13 @@ server <- function(input, output, session) {
     output$map <- renderLeaflet({
         leaflet() %>% 
             setView(lng = -98.5795, lat = 39.8283, zoom = 4) |> # center the map in USA
-            addTiles(layerId = 'map_click') 
+            addTiles(layerId = 'map_click') |>
+            addPolygons(data = conus_hex_shp |> sf::st_transform('EPSG:4326'),
+                        fillColor = NA,
+                        opacity = 1, 
+                        color = 'black', 
+                        fillOpacity = 0, 
+                        weight = 0.4)
         
     })
     
