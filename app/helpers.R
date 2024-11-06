@@ -71,10 +71,15 @@ filter_groups_to_optimal <- function(hex_conditions, c_x_albedo, column, directi
     
 }
 
-get_ts_plot <- function(c_albedo_table, groups, max_age = 105, write_file = NULL) {
+get_ts_plot <- function(c_albedo_table, preds, groups, max_age = 105, write_file = NULL) {
     data <- c_albedo_table |> 
         dplyr::filter(ForestTypeGroup %in% groups, 
                       AgeGroup <= max_age)
+    
+    preds <- preds |> 
+        dplyr::filter(ForestTypeGroup %in% groups, 
+                      AgeGroup <= max_age)
+    
     c_data <- data |> 
         tidyr::pivot_longer(c('carbon', 'cumTDEE', 'joint_c'), values_to = 'c', names_to = 'type') |>
         dplyr::mutate(type = dplyr::case_when(
@@ -111,12 +116,6 @@ get_ts_plot <- function(c_albedo_table, groups, max_age = 105, write_file = NULL
         dplyr::mutate(AgeGroup = AgeGroup + 5) |>
         dplyr::mutate(future = AgeGroup <= 25) |>
         dplyr::filter(AgeGroup < max_age)
-    preds <- data |>
-        dplyr::group_by(ForestTypeGroup, type) |>
-        dplyr::group_modify(~ data.frame(preds = predict(mgcv::gam(c ~ s(AgeGroup, bs = "cs"), data = .x), data.frame(AgeGroup = 1:max_age))) |> 
-                                dplyr::mutate(AgeGroup = 1:max_age)) |>
-        dplyr::ungroup() |> 
-        dplyr::mutate(future = AgeGroup <= 25)
     
     p <- ggplot(data, aes(x = AgeGroup, y = c, color = ForestTypeGroup)) + 
         scale_color_brewer(palette = 'Dark2', name = 'Forest-type Group') +
@@ -169,7 +168,10 @@ render_ts <- function(lat_lon, conus_hex_shp, hex_conditions, c_x_albedo) {
     lon <- lat_lon$lon
     
     groups <- get_groups(lat, lon, conus_hex_shp, hex_conditions, c_x_albedo, joint_c)
-    get_ts_plot(c_x_albedo, groups$ForestTypeGroup)
+    
+    preds <- read.csv("data/gam_preds.csv")
+    
+    get_ts_plot(c_x_albedo, preds, groups$ForestTypeGroup)
 }
 
 render_rank_tab <- function(lat_lon, conus_hex_shp, hex_conditions, c_x_albedo) {
