@@ -78,7 +78,8 @@ get_ts_plot <- function(c_albedo_table, preds, groups, max_age = 105, write_file
     
     preds <- preds |> 
         dplyr::filter(ForestTypeGroup %in% groups, 
-                      AgeGroup <= max_age)
+                      AgeGroup <= max_age) |>
+        dplyr::mutate(type = factor(type, levels = c('Non-soil Carbon', 'Carbon-equivalent Albedo Offset', 'Joint C-albedo')))
     
     c_data <- data |> 
         tidyr::pivot_longer(c('carbon', 'cumTDEE', 'joint_c'), values_to = 'c', names_to = 'type') |>

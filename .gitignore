@@ -1,3 +1,6 @@
+# electron wrapper
+standalone/node_modules
+
 # History files
 .Rhistory
 .Rapp.history
