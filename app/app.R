@@ -9,7 +9,6 @@ source("helpers.R")
 
 
 ui <- page_fluid(
-    shinyFeedback::useShinyFeedback(),
     waiter::use_waiter(),
     # App title ----
     title = "Reforestation Recommendations",
@@ -18,7 +17,7 @@ ui <- page_fluid(
         nav_panel("Application", 
                   card(card_header("Hexagon Selection"),
                        card_body(leafletOutput("map")),
-                       card_footer(htmlOutput("selection_info"))),
+                       card_footer(htmlOutput("notice"))),
                   card(card_header("25-year Horizon"), 
                        card_body(htmlOutput("rank_table"))),
                   card(card_header("Timeseries"), 
@@ -38,83 +37,89 @@ server <- function(input, output, session) {
         dplyr::pull(USHEXES_ID) |> 
         unique()
     c_x_albedo <- read.csv("data/c_albedo_table.csv")
-    lat_lon <- reactiveValues()
-    in_conus <- reactiveVal()
-    any_forest <- reactiveVal()
-    
-    check_lat_lon <- reactive({
-        waiter <- waiter::Waiter$new()
-        waiter$show()
-        on.exit(waiter$hide())
-        req(lat_lon$lat, lat_lon$lon, cancelOutput = TRUE)
-        
-        hex_id <- get_hex_id(conus_hex_shp, lat_lon$lat, lat_lon$lon)
-        in_conus(length(hex_id) != 0)
-        any_forest(hex_id %in% hex_ids)
-        
-        req(in_conus(), cancelOutput = TRUE)
-        req(any_forest(), cancelOutput = TRUE)
-        message(in_conus())
-        message(any_forest())
-        
-        return(lat_lon)
-    })
+    hex_id <- reactiveVal(NULL)
+    selected <- reactiveVal(NULL)
     
     output$map <- renderLeaflet({
-        waiter <- waiter::Waiter$new()
-        waiter$show()
-        on.exit(waiter$hide())
         leaflet() %>% 
             setView(lng = -98.5795, lat = 39.8283, zoom = 4) |> # center the map in USA
             addTiles(layerId = 'map_click') |>
             addPolygons(data = conus_hex_shp,
+                        layerId = conus_hex_shp$USHEXES_ID,
+                        group = 'base',
                         fillColor = NA,
                         opacity = 1, 
                         color = 'black', 
                         fillOpacity = 0, 
-                        weight = 0.4)
+                        weight = 0.4, 
+                        highlightOptions = highlightOptions(color = "#CC0000", 
+                                                            weight = 3, 
+                                                            bringToFront = TRUE))
         
     })
     
     observeEvent(input$map_click, {
-        waiter <- waiter::Waiter$new()
-        waiter$show()
-        on.exit(waiter$hide())
+        
         proxy <- leafletProxy("map")
-        click <- input$map_click
-        lat_lon$lat <- input$map_click$lat
-        lat_lon$lon <- input$map_click$lng
-        check_lat_lon()
+        
+        new_selected <- req(input$map_shape_click, cancelOutput = TRUE)
+        old_selected <- selected()
+
+        if (is.null(old_selected) || new_selected$.nonce != old_selected$.nonce) {
+            validate(
+                need(new_selected$group!="selection", message=FALSE)
+            )
+            
+            hex_id(new_selected$id)
+            selected(new_selected)
+            
+            i <- which(conus_hex_shp$USHEXES_ID==new_selected$id)
+            conus_hex_shp_filtered <- conus_hex_shp[i,]
+
+            proxy |>
+                clearGroup("selection") |>
+                addPolygons(
+                    data = conus_hex_shp_filtered,
+                    group = 'selection',
+                    fillColor = "cyan",
+                    weight = 1.2,
+                    color = "black",
+                    fillOpacity = 0.6)
+        } 
+    
     })
     
     output$ts <- renderPlot({
         waiter <- waiter::Waiter$new()
         waiter$show()
         on.exit(waiter$hide())
-        req(lat_lon$lat, lat_lon$lon, in_conus(), any_forest(), cancelOutput = TRUE)
-        render_ts(lat_lon, conus_hex_shp, hex_conditions, c_x_albedo)
+        
+        req(hex_id() %in% hex_ids)
+        
+        render_ts(hex_id(), conus_hex_shp, hex_conditions, c_x_albedo)
     })
 
     output$rank_table <- renderText({
         waiter <- waiter::Waiter$new()
         waiter$show()
         on.exit(waiter$hide())
-        req(lat_lon$lat, lat_lon$lon, in_conus(), any_forest(), cancelOutput = TRUE)
-        render_rank_tab(lat_lon, conus_hex_shp, hex_conditions, c_x_albedo)
+        
+        req(hex_id() %in% hex_ids)
+        
+        render_rank_tab(hex_id(), conus_hex_shp, hex_conditions, c_x_albedo)
     })
     
-    output$selection_info <- renderText({
+    output$notice <- renderText({
         waiter <- waiter::Waiter$new()
         waiter$show()
         on.exit(waiter$hide())
-        if (is.null(lat_lon$lat) || is.null(in_conus()) || is.null(any_forest())) {
+        
+        if(is.null(hex_id()) | length(hex_id()) == 0) {
             result <- "Use map to select a hexagon. Then scroll down for results."
-        } else if (!in_conus()) {
-            result <- "Use map to select a hexagon. Then scroll down for results."
-        } else if (!any_forest()) {
+        } else if (!hex_id() %in% hex_ids) {
             result <- "<span style=color:#C41E3A>Selected hexagon is not currently forested. Make a new selection.</span>"
         } else {
-            result <- glue::glue("Lat: {round(lat_lon$lat, 4)}, Lon: {round(lat_lon$lon, 4)}")
+            result <- "Use map to select a hexagon. Then scroll down for results."
         }
         return(result)
     })

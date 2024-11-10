@@ -18,14 +18,6 @@ get_point <- function(lat, lon, crs) {
         sf::st_transform(crs))
 }
 
-get_hex_id <- function(conus_hex_shp, lat, lon) {
-    point <- get_point(lat, lon, sf::st_crs(conus_hex_shp))
-    
-    hex_id <- sf::st_filter(conus_hex_shp, point, .predicate = sf::st_intersects) |> 
-        dplyr::pull(USHEXES_ID)
-    return(hex_id)
-}
-
 get_best_age_match <- function(c_x_albedo, age, column) {
     c_x_albedo_age_match <- c_x_albedo |>
         dplyr::filter(!is.na({{column}})) |>
@@ -122,7 +114,7 @@ get_ts_plot <- function(c_albedo_table, preds, groups, max_age = 105, write_file
         scale_color_brewer(palette = 'Dark2', name = 'Forest-type Group') +
         geom_pointrange(aes(ymin = lower, ymax = upper, alpha = future), size = 0.2) + 
         geom_line(data = preds, aes(y = preds, x = AgeGroup, alpha = future, color = ForestTypeGroup), size = .8) +
-        facet_wrap(~ type, ncol = 2, scales = 'free') +
+        facet_wrap(~ type, ncol = 3, scales = 'free') +
         scale_y_continuous(expand = c(0.005, 0.005)) + 
         scale_x_continuous(expand = c(0.005, 0.005)) +
         scale_alpha_discrete(range = c(0.35, 1), guide = NULL) +
@@ -131,7 +123,7 @@ get_ts_plot <- function(c_albedo_table, preds, groups, max_age = 105, write_file
         annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, linewidth = 1) +
         annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, linewidth = 1) +
         my_theme() +
-        theme(legend.position = 'right', 
+        theme(legend.position = 'bottom', 
               panel.grid = element_blank()) +
         ylab(bquote("Mg"~ha^-1*"")) + 
         xlab("Age (years)")
@@ -139,8 +131,7 @@ get_ts_plot <- function(c_albedo_table, preds, groups, max_age = 105, write_file
     return(p)    
 }
 
-get_groups <- function(lat, lon, conus_hex_shp, hex_conditions, c_x_albedo, column, direction = 'descending', age = 20) {
-    hex_id <- get_hex_id(conus_hex_shp, lat, lon)
+get_groups <- function(hex_id, conus_hex_shp, hex_conditions, c_x_albedo, column, direction = 'descending', age = 20) {
     
     groups <- hex_conditions |> 
         dplyr::filter(USHEXES_ID == hex_id) |>
@@ -164,22 +155,18 @@ get_groups <- function(lat, lon, conus_hex_shp, hex_conditions, c_x_albedo, colu
     
 }
 
-render_ts <- function(lat_lon, conus_hex_shp, hex_conditions, c_x_albedo) {
-    lat <- lat_lon$lat
-    lon <- lat_lon$lon
+render_ts <- function(hex_id, conus_hex_shp, hex_conditions, c_x_albedo) {
     
-    groups <- get_groups(lat, lon, conus_hex_shp, hex_conditions, c_x_albedo, joint_c)
+    groups <- get_groups(hex_id, conus_hex_shp, hex_conditions, c_x_albedo, joint_c)
     
     preds <- read.csv("data/gam_preds.csv")
     
     get_ts_plot(c_x_albedo, preds, groups$ForestTypeGroup)
 }
 
-render_rank_tab <- function(lat_lon, conus_hex_shp, hex_conditions, c_x_albedo) {
-    lat <- lat_lon$lat
-    lon <- lat_lon$lon
+render_rank_tab <- function(hex_id, conus_hex_shp, hex_conditions, c_x_albedo) {
     
-    groups <- get_groups(lat, lon, conus_hex_shp, hex_conditions, c_x_albedo, joint_c) |>
+    groups <- get_groups(hex_id, conus_hex_shp, hex_conditions, c_x_albedo, joint_c) |>
         dplyr::relocate(rank, ForestTypeGroup, joint_c, carbon, carbon_se, cumTDEE, cumTDEE_ubSE, cumTDEE_lbSE) |>
         dplyr::mutate(dplyr::across(dplyr::where(is.numeric), ~ round(.x, 2)))
     
