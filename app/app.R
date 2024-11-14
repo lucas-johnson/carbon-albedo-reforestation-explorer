@@ -4,12 +4,10 @@ library(kableExtra)
 library(ggplot2)
 library(shinyFeedback)
 library(leaflet)
-library(waiter)
 source("helpers.R")
 
 
 ui <- page_fluid(
-    waiter::use_waiter(),
     # App title ----
     title = "Reforestation Recommendations",
     navset_card_underline(
@@ -90,30 +88,18 @@ server <- function(input, output, session) {
     })
     
     output$ts <- renderPlot({
-        waiter <- waiter::Waiter$new()
-        waiter$show()
-        on.exit(waiter$hide())
-        
         req(hex_id() %in% hex_ids)
         
         render_ts(hex_id(), conus_hex_shp, hex_conditions, c_x_albedo)
     })
 
     output$rank_table <- renderText({
-        waiter <- waiter::Waiter$new()
-        waiter$show()
-        on.exit(waiter$hide())
-        
         req(hex_id() %in% hex_ids)
         
         render_rank_tab(hex_id(), conus_hex_shp, hex_conditions, c_x_albedo)
     })
     
     output$notice <- renderText({
-        waiter <- waiter::Waiter$new()
-        waiter$show()
-        on.exit(waiter$hide())
-        
         if(is.null(hex_id()) | length(hex_id()) == 0) {
             result <- "Use map to select a hexagon. Then scroll down for results."
         } else if (!hex_id() %in% hex_ids) {
