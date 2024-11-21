@@ -116,7 +116,10 @@ get_ts_plot <- function(c_albedo_table, preds, groups, max_age = 105, write_file
         geom_line(data = preds, aes(y = preds, x = AgeGroup, alpha = future, color = ForestTypeGroup), size = .8) +
         facet_wrap(~ type, ncol = 3, scales = 'free') +
         scale_y_continuous(expand = c(0.005, 0.005)) + 
-        scale_x_continuous(expand = c(0.005, 0.005)) +
+        scale_x_continuous(expand = c(0.005, 0.005), 
+                           labels = c(5, seq(25, max_age-5, 25)), 
+                           breaks = c(5, seq(25, max_age-5, 25)),
+                           limits = c(0, max_age)) +
         scale_alpha_discrete(range = c(0.35, 1), guide = NULL) +
         geom_vline(xintercept = 20, linetype = 'longdash') + 
         geom_vline(xintercept = 30, linetype = 'longdash') + 
