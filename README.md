@@ -26,7 +26,8 @@ The estimates of joint C-albedo benefits that support our application were made 
 If you encounter any problems, or have any recommendations for how to improve the app's functionality, please submit a github issue or reach out to the app developers using the contact information provided below.
 
 ## Citation
-Johnson, Yang, Erb, Bright, Domke, Frescino, Schaaf, Healey, (in review), Integrating albedo offsets in reforestation decisions for climate change mitigation outcomes in 2050: a case study in the USA.
+
+Johnson, L. K., Yang, Z., Erb, A., Bright, R. M., Domke, G. M., Frescino, T. S., Schaaf, C. B., Healey, S. P. Integrating albedo offsets in reforestation decisions for climate change mitigation outcomes in 2050: a case study in the USA. Forest Ecology and Management, 587, 122699. https://doi.org/10.1016/j.foreco.2025.122699
 
 Johnson, L., Healey, S., & Yang, Z. (2024). Carbon and Albedo Reforestation Explorer (1.0.0). Zenodo. https://doi.org/10.5281/zenodo.14563711
 
